@@ -1,0 +1,23 @@
+# Virtual Environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE and editor settings
+.vscode/
+.idea/
+
+# Pytest cache
+.pytest_cache/
+
+# Secret files
+.env
+
+# Testing notebooks
+notebooks/
+
+# Old files
+old_code/

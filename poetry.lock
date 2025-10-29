@@ -1795,22 +1795,6 @@ test = ["pytest (>=7.2)", "pytest-cov (>=4.0)", "pytest-xdist (>=3.0)"]
 test-extras = ["pytest-mpl", "pytest-randomly"]
 
 [[package]]
-name = "noiseeffect"
-version = "0.1.0"
-description = ""
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = []
-develop = false
-
-[package.source]
-type = "git"
-url = "https://github.com/marlene-grabner/NoiseInNetworks.git"
-reference = "HEAD"
-resolved_reference = "18f32fd96776870cd5d8f0bda6b8e7693b8f770c"
-
-[[package]]
 name = "notebook"
 version = "7.4.5"
 description = "Jupyter Notebook - A web-based notebook environment for interactive computing"
@@ -3361,4 +3345,4 @@ test = ["websockets"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4"
-content-hash = "f2bd78c533bc34251b4759f32265210df70a726bdfed7f0cb6fc08dbd9966b25"
+content-hash = "36f2dec0f81d7f8c367f21d9d3f522f3b494cf498ae0d2db5960e053fda937de"

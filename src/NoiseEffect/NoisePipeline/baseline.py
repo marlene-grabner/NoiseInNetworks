@@ -1,19 +1,19 @@
 import networkx as nx
-from NoiseEffect.RecoveryMethods.LocalNeighborhood.random_walk import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalNeighborhood.random_walk import (
     randomWalkWithRestart,
 )
 import leidenalg as la
 import numpy as np
 import igraph as ig
 from infomap import Infomap
-from NoiseEffect.RecoveryMethods.LocalStructure.community_detection_algorithms import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalStructure.community_detection_algorithms import (
     CommunityDetectionAlgorithms,
 )
-from NoiseEffect.RecoveryMethods.GlobalStructure.global_structure_metrics import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.GlobalStructure.global_structure_metrics import (
     generateGlobalStructureMetrics,
 )
 import random
-from NoiseEffect.utils.generateRWRstarts import generateRWRstarts
+from NoiseEffect.NoisePipeline.utils.generateRWRstarts import generateRWRstarts
 
 
 class OriginalNetwork:

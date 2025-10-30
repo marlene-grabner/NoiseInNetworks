@@ -1,5 +1,5 @@
 import traceback
-import NoiseEffect.individual_run_setup as ia
+import NoiseEffect.NoisePipeline.individual_run_setup as ia
 
 
 def workerFunction(request, random_seed_list):

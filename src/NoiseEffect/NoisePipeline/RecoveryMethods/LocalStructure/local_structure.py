@@ -1,10 +1,10 @@
-from NoiseEffect.RecoveryMethods.LocalStructure.community_detection_algorithms import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalStructure.community_detection_algorithms import (
     CommunityDetectionAlgorithms,
 )
-from NoiseEffect.RecoveryMethods.LocalStructure.community_comparison_metrics import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalStructure.community_comparison_metrics import (
     CommunityComparisonMetrics,
 )
-from NoiseEffect.RecoveryMethods.LocalStructure.heuristic_comparison import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalStructure.heuristic_comparison import (
     CompareHeuristicClusterings,
 )
 

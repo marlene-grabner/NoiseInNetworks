@@ -1,11 +1,11 @@
 from sklearn.metrics import roc_auc_score, average_precision_score
-from NoiseEffect.RecoveryMethods.GlobalStructure.global_structure_metrics import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.GlobalStructure.global_structure_metrics import (
     generateGlobalStructureMetrics,
 )
-from NoiseEffect.RecoveryMethods.LocalStructure.local_structure import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalStructure.local_structure import (
     localStructureAnalysis,
 )
-from NoiseEffect.RecoveryMethods.LocalNeighborhood.local_neighborhood import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalNeighborhood.local_neighborhood import (
     localNeighborhoodAnalysis,
 )
 import igraph as ig

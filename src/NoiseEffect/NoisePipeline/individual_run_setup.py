@@ -2,9 +2,9 @@ import networkx as nx
 import random
 import os
 import numpy as np
-from NoiseEffect.baseline import OriginalNetwork
-from NoiseEffect.perturbation import PerturbedEdges
-from NoiseEffect.recovery import NoisyNetworkRecovery
+from NoiseEffect.NoisePipeline.baseline import OriginalNetwork
+from NoiseEffect.NoisePipeline.perturbation import PerturbedEdges
+from NoiseEffect.NoisePipeline.recovery import NoisyNetworkRecovery
 
 
 class IndividualAnalysis:

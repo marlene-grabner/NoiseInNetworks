@@ -1,4 +1,4 @@
-from NoiseEffect.RecoveryMethods.LocalStructure.community_comparison_metrics import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalStructure.community_comparison_metrics import (
     CommunityComparisonMetrics,
 )
 from collections import Counter

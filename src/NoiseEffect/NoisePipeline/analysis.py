@@ -3,7 +3,7 @@ import multiprocessing
 import json
 import traceback
 import time
-from NoiseEffect.worker import workerFunction
+from NoiseEffect.NoisePipeline.worker import workerFunction
 import random
 import functools
 

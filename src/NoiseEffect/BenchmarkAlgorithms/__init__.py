@@ -1,0 +1,1 @@
+from .leiden_benchmark import benchmarkLeidenAlgorithm

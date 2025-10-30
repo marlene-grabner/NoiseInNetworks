@@ -1,4 +1,4 @@
-from NoiseEffect.RecoveryMethods.LocalNeighborhood.random_walk import (
+from NoiseEffect.NoisePipeline.RecoveryMethods.LocalNeighborhood.random_walk import (
     randomWalkWithRestart,
 )
 from scipy.spatial.distance import jensenshannon

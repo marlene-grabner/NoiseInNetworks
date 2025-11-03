@@ -112,12 +112,7 @@ class NoisyNetworkRecovery:
         modification_type,
         perturbation,
     ):
-        global_structure_results = generateGlobalStructureMetrics(
-            G_nx,
-            samples=100,
-            eigenvector_spectra_dir=self.original_network_obj.eigenvector_spectra_dir,
-            network_identifier=f"{modification_type}_noise_{perturbation}",
-        )
+        global_structure_results = generateGlobalStructureMetrics(G_nx, samples=100)
         self.recovery_results[modification_type][f"noise_{perturbation}"][
             "global_structure"
         ] = global_structure_results

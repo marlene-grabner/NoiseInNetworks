@@ -17,10 +17,9 @@ from NoiseEffect.NoisePipeline.utils.generateRWRstarts import generateRWRstarts
 
 
 class OriginalNetwork:
-    def __init__(self, network_request, random_seed_list, eigenvector_spectra_dir):
+    def __init__(self, network_request, random_seed_list):
         self.network_request = network_request
         self.random_seed_list = random_seed_list
-        self.eigenvector_spectra_dir = eigenvector_spectra_dir
         self.original_network_nx = None
         self.original_network_ig = None
         self.idx_to_node = None
@@ -156,8 +155,5 @@ class OriginalNetwork:
 
     def getBaselineGlobalNetworkProperties(self):
         self.original_global_structure = generateGlobalStructureMetrics(
-            self.original_network_nx,
-            samples=100,
-            eigenvector_spectra_dir=self.eigenvector_spectra_dir,
-            network_identifier="baseline",
+            self.original_network_nx, samples=100
         )

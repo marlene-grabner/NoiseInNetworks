@@ -22,7 +22,6 @@ class IndividualAnalysis:
         self.network_list = None
         self.results = {}
         self.identifier = self._createIdentifier()
-        self.eigenvector_spectra_dir = None
         self.original_network = None
         self.random_added_edges_dict = {}
         self.random_removed_edges_dict = {}
@@ -35,11 +34,9 @@ class IndividualAnalysis:
         print(f"-> Initialized analysis for: {self.network_request.get('type')}")
 
     def run(self):
-        # 0. Folder for eigenvector spectra
-        self._createEigenvectorSpectraDir()
         # 1. Create ground truth network
         self.original_network = OriginalNetwork(
-            self.network_request, self.random_seed_list, self.eigenvector_spectra_dir
+            self.network_request, self.random_seed_list
         )
         self.original_network.generateEvaluationBaseline()
 
@@ -74,9 +71,6 @@ class IndividualAnalysis:
             for k, v in sorted(self.network_request.items())
             if k not in ["type", "instance"]
         ]
-        print(params)
-        print()
-        print(self.network_request.items())
         base_name = f"{name}_" + "_".join(params)
 
         # Append the instance number if it exists
@@ -85,7 +79,3 @@ class IndividualAnalysis:
             return f"{base_name}_{instance_num}"
 
         return base_name
-
-    def _createEigenvectorSpectraDir(self):
-        os.makedirs(f"global_structure_spectra_{self.identifier}", exist_ok=True)
-        self.eigenvector_spectra_dir = f"global_structure_spectra_{self.identifier}"

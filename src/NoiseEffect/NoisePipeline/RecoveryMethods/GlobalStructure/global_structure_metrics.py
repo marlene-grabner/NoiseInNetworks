@@ -7,9 +7,7 @@ from scipy.sparse.linalg import eigsh
 from scipy.sparse import csr_matrix, csgraph
 
 
-def generateGlobalStructureMetrics(
-    G, samples=100, eigenvector_spectra_dir=None, network_identifier=""
-):
+def generateGlobalStructureMetrics(G, samples=100):
     metrics = {}
     metrics["number_of_components"] = _numberOfComponents(G)
     metrics["average_shortest_path_approx_lcc"] = _averageShortestPathApproximateOnLCC(
@@ -17,15 +15,6 @@ def generateGlobalStructureMetrics(
     )
     metrics["average_clustering_coeff_approx_lcc"] = (
         _averageClusteringCoeffApproximateOnLCC(G, samples=samples)
-    )
-    # Eigenvectors get saved immediately to avoid large memory usage
-    os.makedirs("global_structure_spectra", exist_ok=True)
-    _calculateAndSaveEigenvectorSpectrum(
-        G,
-        k=min(300, G.number_of_nodes() - 2),
-        normalized_laplacian=True,
-        eigenvector_spectra_dir=eigenvector_spectra_dir,
-        network_identifier=network_identifier,
     )
     return metrics
 
@@ -69,6 +58,11 @@ def _averageClusteringCoeffApproximateOnLCC(G, samples=1000):
         sub = G.subgraph(neighbors)
         triangles += len(sub.edges())
     return (3 * triangles) / triads if triads > 0 else 0
+
+
+"""
+Not needed anymore
+"""
 
 
 def _calculateAndSaveEigenvectorSpectrum(

@@ -1,3 +1,3 @@
 from .NoisePipeline import NetworkNoiseAnalysis
-from .BenchmarkAlgorithms.benchmark import benchmarkAlgorithm
-from .BenchmarkAlgorithms.visualize import plotStabilityResults
+from .BenchmarkAlgorithms import benchmarkAlgorithm
+from .BenchmarkAlgorithms import plotStabilityResults

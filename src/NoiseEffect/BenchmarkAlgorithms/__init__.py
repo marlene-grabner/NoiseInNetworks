@@ -1,1 +1,1 @@
-from .leiden_benchmark import benchmarkLeidenAlgorithm
+from .benchmark import benchmarkAlgorithm

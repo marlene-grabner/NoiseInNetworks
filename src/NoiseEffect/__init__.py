@@ -1,3 +1,3 @@
 from .NoisePipeline import NetworkNoiseAnalysis
-from .BenchmarkAlgorithms.leiden_benchmark import benchmarkLeidenAlgorithm
+from .BenchmarkAlgorithms.benchmark import benchmarkAlgorithm
 from .BenchmarkAlgorithms.visualize import plotStabilityResults

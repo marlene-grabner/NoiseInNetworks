@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plotStabilityResults(results_data, algorithm_name="Undefined"):
+def plotStabilityResults(results_data, algorithm_name="Undefined", extra_info = None):
     """
     Plots the stability results as a 2x2 matplotlib chart.
     """
@@ -67,5 +67,6 @@ def plotStabilityResults(results_data, algorithm_name="Undefined"):
 
     # 4. Finalize and show the plot
     fig.suptitle(f'Algorithm Stability for {algorithm_name}', fontsize=16)
+    fig.text(0.5, 0.93, extra_info, ha='center', fontsize=12) if extra_info else None
     plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust for suptitle
     plt.show()

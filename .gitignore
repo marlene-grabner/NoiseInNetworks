@@ -20,4 +20,4 @@ __pycache__/
 notebooks/
 
 # Old files
-old_code/
+old_code/*.egg-info

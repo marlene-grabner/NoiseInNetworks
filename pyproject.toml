@@ -1,6 +1,3 @@
-[tool.setuptools.packages.find]
-where = ["src"]
-
 [project]
 name = "noiseinnetworks"
 version = "0.1.0"

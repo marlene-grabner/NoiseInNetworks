@@ -68,6 +68,14 @@ class OriginalNetwork:
             self.idx_to_node = {i: i for i in g.nodes()}
             self.node_to_idx = {i: i for i in g.nodes()}
 
+        elif network_type == "geometric":
+            # Required params: n (nodes), radius
+            g = nx.random_geometric_graph(
+                n=self.network_request["nodes"], radius=self.network_request["radius"]
+            )
+            self.idx_to_node = {i: i for i in g.nodes()}
+            self.node_to_idx = {i: i for i in g.nodes()}
+
         elif network_type == "barabasi_albert":
             # Required params: n (nodes), m (edges to attach)
             g = nx.barabasi_albert_graph(

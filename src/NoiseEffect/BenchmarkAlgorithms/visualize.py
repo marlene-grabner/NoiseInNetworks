@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import warnings
 
 
 def plotStabilityResults(
@@ -34,9 +35,19 @@ def plotStabilityResults(
                 if run["status"] == "success"
             ]
 
-            # Calculate mean and standard deviation
-            means.append(np.mean(values))
-            stds.append(np.std(values))
+            # Convert to numpy array to handle NaNs easily
+            values = np.array(values, dtype=float)
+
+            # Check if we have valid data before calculating
+            # (Silences "Mean of empty slice" warnings)
+            if len(values) == 0 or np.all(np.isnan(values)):
+                means.append(np.nan)
+                stds.append(np.nan)
+            else:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=RuntimeWarning)
+                    means.append(np.nanmean(values))
+                    stds.append(np.nanstd(values))
 
         plot_data[plot_title] = {"means": means, "stds": stds}
 
@@ -53,16 +64,33 @@ def plotStabilityResults(
     for i, (title, data) in enumerate(plot_data.items()):
         ax = axes[i]
 
+        current_means = data["means"]
+        current_stds = data["stds"]
+
         # Create the bar plot with error bars
         ax.bar(
             x_positions,
-            data["means"],
-            yerr=data["stds"],  # This adds the standard deviation
+            current_means,
+            yerr=current_stds,  # This adds the standard deviation
             capsize=5,  # Adds the little caps on the error bars
             align="center",
             alpha=0.7,
             color="midnightblue",
         )
+
+        # Iterate through our data. If a mean is NaN, place text on the axis.
+        for x, val in zip(x_positions, current_means):
+            if np.isnan(val):
+                ax.text(
+                    x,
+                    0,
+                    "N/A",
+                    ha="center",
+                    va="bottom",
+                    color="darkred",
+                    fontweight="bold",
+                    fontsize=16,
+                )
 
         ax.set_title(title)
         ax.set_ylabel("Mean Value")
@@ -99,13 +127,28 @@ def plotSpreadOfStabilityResults(
         res = results_dict[name]
         ari = [r[measurement] for r in res]
         ax = axes[i]
+
+        # --- IF ONLY NANs ---
+        # Convert to float and remove NaNs
+        ari = np.asarray(ari, dtype=float)
+        ari = ari[~np.isnan(ari)]
+
         if ari is None or len(ari) == 0:
-            ax.text(0.5, 0.5, "No data found", ha="center", va="center")
+            ax.text(
+                0.5,
+                0.5,
+                "N/A",
+                ha="center",
+                va="center",
+                color="darkred",
+                fontweight="bold",
+                fontsize=16,
+            )
             ax.set_title(name)
             ax.set_xticks([])
             ax.set_yticks([])
             continue
-        ari = np.asarray(ari, dtype=float)
+
         ax.hist(ari, bins=20, color="#71C5C9", edgecolor="w", alpha=0.8)
         ax.axvline(
             ari.mean(),

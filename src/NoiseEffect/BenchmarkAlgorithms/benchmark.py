@@ -2,10 +2,15 @@ import igraph as ig
 import networkx as nx
 import itertools
 from NoiseEffect.BenchmarkAlgorithms.utils import convertPartitionToLabels, getMetrics
-from NoiseEffect.BenchmarkAlgorithms.detection_algorithms import leidenAlgorithmPartioning, infomapAlgorithmPartioning
+from NoiseEffect.BenchmarkAlgorithms.detection_algorithms import (
+    leidenAlgorithmPartioning,
+    infomapAlgorithmPartioning,
+    louvainPartioning,
+    labelPropagationPartitioning,
+)
 
 
-def benchmarkAlgorithm(nx_graph, list_of_seeds, algorithm, parameters = {}):
+def benchmarkAlgorithm(nx_graph, list_of_seeds, algorithm, parameters={}):
     """
     Runs a community detection algorithm multiple times to benchmark its stability.
 
@@ -24,18 +29,31 @@ def benchmarkAlgorithm(nx_graph, list_of_seeds, algorithm, parameters = {}):
     ig_graph = ig.Graph.from_networkx(nx_graph)
     num_nodes = ig_graph.vcount()
 
-    if algorithm == 'leiden':
-        n_iterations = parameters.get('n_iterations', 2) # Get specified n_iterations or use default chosed by leidenalg package (which is 2)
-        partitions = leidenAlgorithmPartioning(ig_graph, list_of_seeds, n_iterations=n_iterations)
-    elif algorithm == 'louvain':
-        raise NotImplementedError("Louvain algorithm not yet implemented.")
-    elif algorithm == 'infomap':
-        n_iterations = parameters.get('n_iterations', 1) # Get specified n_iterations or use default value for infomap package which is 1
-        partitions = infomapAlgorithmPartioning(ig_graph, list_of_seeds, n_iterations=n_iterations)
+    if algorithm == "leiden":
+        n_iterations = parameters.get(
+            "n_iterations", 2
+        )  # Get specified n_iterations or use default chosed by leidenalg package (which is 2)
+        partitions = leidenAlgorithmPartioning(
+            ig_graph, list_of_seeds, n_iterations=n_iterations
+        )
+    elif algorithm == "louvain":
+        partitions = louvainPartioning(ig_graph, list_of_seeds)
+    elif algorithm == "label_propagation":
+        partitions = labelPropagationPartitioning(ig_graph, list_of_seeds)
+    elif algorithm == "sbm":
+        raise NotImplementedError(
+            "SBM partitioning not implemented in benchmarkAlgorithm."
+        )
+    elif algorithm == "infomap":
+        n_iterations = parameters.get(
+            "n_iterations", 1
+        )  # Get specified n_iterations or use default value for infomap package which is 1
+        partitions = infomapAlgorithmPartioning(
+            ig_graph, list_of_seeds, n_iterations=n_iterations
+        )
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
 
-    
     labels = []
     for seed, partition in partitions.items():
         labels.append(convertPartitionToLabels(partition, num_nodes))
@@ -48,7 +66,3 @@ def benchmarkAlgorithm(nx_graph, list_of_seeds, algorithm, parameters = {}):
         result = getMetrics(*pair)
         results.append(result)
     return results
-
-
-
-

@@ -41,8 +41,8 @@ def plotStabilityResults(
             # Check if we have valid data before calculating
             # (Silences "Mean of empty slice" warnings)
             if len(values) == 0 or np.all(np.isnan(values)):
-                means.append(np.nan)
-                stds.append(np.nan)
+                means.append(0)
+                stds.append(0)
             else:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", category=RuntimeWarning)

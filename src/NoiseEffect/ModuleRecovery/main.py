@@ -122,13 +122,13 @@ def _computeModulesonPerturbedNetworks(
                 if save_raw_modules:
                     save_raw_to_disk(recovered_mod, filename, algo, seed_id)
 
-            # C. Write batch to CSV (Reduces I/O overhead compared to writing 1 by 1)
-            with open(output_csv_path, "a", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerows(batch_results)
+        # C. Write batch to CSV (Reduces I/O overhead compared to writing 1 by 1)
+        with open(output_csv_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerows(batch_results)
 
-            # Explicitly delete graph to ensure memory is freed
-            del perturbed_G
+        # Explicitly delete graph to ensure memory is freed
+        del perturbed_G
     print("--- Benchmarking Complete ---")
 
 
@@ -323,6 +323,7 @@ benchmarkModuleDetectionAlgorithms(
     algorithms_config=algorithms_to_test,
     seed_groups=algorithm_starting_points,
     output_csv_path=output_csv_path,
+    c
 )
 
 # %%

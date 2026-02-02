@@ -19,15 +19,15 @@ def filterForSeedsInNetwork(
         # Skip seed groups that become empty
         if len(valid_seed_nodes) == 0:
             logger.warning(
-                f"Warning: Seed group {seed_id} has no valid seed nodes on {network_name} and will be skipped."
+                f"Warning: Seed group {seed_id} has no valid seed nodes on {network_name}."
             )
             print(
-                f"Warning: Seed group {seed_id} has no valid seed nodes on {network_name} and will be skipped."
+                f"Warning: Seed group {seed_id} has no valid seed nodes on {network_name}."
             )
-            continue
+            valid_seed_nodes = []
 
         # Alert if some seeds are not present in the baseline network
-        if len(valid_seed_nodes) < len(seed_nodes):
+        elif len(valid_seed_nodes) < len(seed_nodes):
             difference_sets = set(seed_nodes).difference(all_network_nodes)
             if len(difference_sets) == 0:
                 print(f'Warning: "{seed_id}" seed set contains duplicates.')

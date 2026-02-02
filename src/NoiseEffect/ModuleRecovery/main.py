@@ -1,329 +1,243 @@
-# %%
 import networkx as nx
 import os
 import csv
-from NoiseEffect.ModuleRecovery.utils import _setupOutputCSV
+import logging
+from tqdm import tqdm
+import json
+import gzip
+from pathlib import Path
+from .run_algorithm_and_compare import _runAlgorithmAndSaveResultsToFile
+from .utils import _setupOutputCSV, _networkMapFromDirectory
+from .seeds_preprocessing import filterForSeedsInNetwork
+from .start_algorithm import startAlgorithm
+
+# Create the logging channel for this file
+logger = logging.getLogger(__name__)
 
 
-# 1. Specify all networks modules shall be defined upon (both baseline and perturbed)
+#############################################
+# Master Function
+#############################################
+
+
 def benchmarkModuleDetectionAlgorithms(
     baseline_network_path: str,
     perturbed_networks_directory: str,
-    perturbed_files_map: dict[str, dict[float, list[str]]],
     algorithms_config: dict[str, bool],
     seed_groups: dict[str, list[str]],
-    output_csv_path: str,
-    save_raw_modules: bool = False,
+    output_file_location: str,
+    experiment_identifier: str,
 ):
+    # 1.
     # Initialize output CSV
-    _setupOutputCSV(output_csv_path)
-    # Load baseline network to compare to
-    print(f"--- Loading Baseline: {baseline_network_path} ---")
-    baseline_G = nx.read_edgelist(path=baseline_network_path, delimiter="\t")
-    baseline_cache = _computeBaselineModules(baseline_G, algorithms_config, seed_groups)
-    print(baseline_cache)
-    print("--- Baseline processing complete. Starting Perturbations ---")
-    _computeModulesonPerturbedNetworks(
-        perturbed_networks_directory,
-        perturbed_files_map,
-        algorithms_config,
-        seed_groups,
-        baseline_cache,
-        save_raw_modules,
+    # This is where all results will be stored
+    # _setupOutputCSV(output_csv_path)
+
+    # 2.
+    # Check seed sets for presence in baseline network
+    baseline_G = nx.read_edgelist(baseline_network_path)
+    cleaned_seed_groups = filterForSeedsInNetwork(
+        G=baseline_G, seed_groups=seed_groups, network_name="baseline"
     )
 
-    # A. Get the results for baseline once
-    # B. for algorithm in algorithms_to_test:
-    #     for noise_type in perturbed_networks_instructions:
-    #         for noise_level in perturbed_networks_instructions[noise_type]:
-    #             for repeat_file in perturbed_networks_instructions[noise_type][noise_level]:
-    #                 # load perturbed network
-    #                 for starting_points in algorithm_starting_points[algorithm]:
-    #                       # recover modules
-    #                       # compare to baseline
+    # 2.
+    # Loading the baseline network to which the perturbed networks will be compared
+    # Get the results for the baseline once
+    print(f"--- Loading Baseline: {baseline_network_path} ---")
+    baseline_cache = _computeBaselineModules(
+        baseline_network_path=baseline_network_path,
+        baseline_G=baseline_G,
+        algorithms_config=algorithms_config,
+        seed_groups=cleaned_seed_groups,
+        output_file_location=output_file_location,
+        experiment_identifier=experiment_identifier,
+    )
+    print("--- Baseline processing complete. Loading perturbed networks. ---")
+
+    # 3.
+    # Generate a list of perturbed networks to process
+    # Format: List of tuples (filename, noise_type, noise_level, repeat_id, network_name)
+    tasks = _networkMapFromDirectory(perturbed_networks_directory)
+
+    print(
+        f"--- {len(tasks)} Perturbed Networks Found. Starting module detection algorithms ---"
+    )
+    # 4.
+    # Calculate the modules on all perturbed networks and compare each to the baseline
+    # Results of comparisons are appended to the output CSV
+    # Optionally raw outputs of the algorithms can be saved to disk
+    _computeModulesOnPerturbedNetworks(
+        perturbed_networks_directory=perturbed_networks_directory,
+        tasks=tasks,
+        algorithms_config=algorithms_config,
+        seed_groups=cleaned_seed_groups,
+        baseline_cache=baseline_cache,
+        output_file_location=output_file_location,
+        experiment_identifier=experiment_identifier,
+    )
+
+
+#############################################
+# Compute the baseline on the unperturbed network
+#############################################
 
 
 def _computeBaselineModules(
+    baseline_network_path: str,
     baseline_G: nx.Graph,
     algorithms_config: dict[str, bool],
     seed_groups: dict[str, list[str]],
+    output_file_location: str,
+    experiment_identifier: str,
 ):
+    logger.info("Starting algorithms on baseline network...")
     baseline_cache = {}
-    for algo in [algo for algo, active in algorithms_config.items() if active]:
+
+    for algo in tqdm([algo for algo, active in algorithms_config.items() if active]):
+        algorithm_cache = []
         for seed_id, seed_nodes in seed_groups.items():
-            # modules = run_algorithm(baseline_G, algo_name, seed_nodes)
+            logger.info(
+                f"Running {algo} on baseline network ({baseline_network_path}) with seed {seed_id}"
+            )
+            # Run algorithm on network
+            results = startAlgorithm(
+                algorithm=algo, G=baseline_G, seed_nodes=seed_nodes
+            )
 
-            # MOCK RESULTS
-            modules = ["geneA", "geneB"]
+            # Get the returned modules
+            if results.algorithm_type == "set":
+                module_results = results.nodes_set
+            else:
+                # Algorihm type is 'ranked'
+                module_results = results.nodes_ranked
 
-            baseline_cache[(algo, seed_id)] = modules
+            # Metadata about this run
+            if algo in [
+                "RandomWalkWithRestartRowNormalization",
+                "RandomWalkWithRestartSymmetricNormalization",
+            ]:
+                run_metadata = results.metadata
+            else:
+                run_metadata = {}
+
+            metrics_dict = {
+                "metadata_network": {
+                    "noise_type": "baseline",
+                    "noise_level": 0,
+                    "repeat": "rep0",
+                },
+                "metadata_seed": {"seed_id": seed_id, "seeds_in_network": seed_nodes},
+                "metadata_run": run_metadata,
+                "module_results": module_results,
+            }
+
+            algorithm_cache.append(metrics_dict)
+
+        _saveBatchToDisk(
+            results_batch=algorithm_cache,
+            outputfile_location=output_file_location,
+            algorithm_name=algo,
+            experiment_identifier=experiment_identifier,
+        )
+
+    logger.info("Algorithms on baseline network complete.")
     return baseline_cache
 
 
-def _computeModulesonPerturbedNetworks(
+#############################################
+# Compute the outcome of the algorithms on the perturbed networks
+# Then compare the results to the baseline and write to CSV
+#############################################
+def _computeModulesOnPerturbedNetworks(
     perturbed_networks_directory: str,
-    perturbed_files_map: dict[str, dict[float, list[str]]],
+    tasks: list[tuple[str, str, str, str, str]],
     algorithms_config: dict[str, bool],
     seed_groups: dict[str, list[str]],
     baseline_cache: dict,
-    save_raw_modules: bool = False,
+    output_file_location: str,
+    experiment_identifier: str,
 ):
-    # Flatten the nested dictionary for clean iteration
-    #### OR CHANGE THE CALLING FUNCTION TO RETURN IT LIKE THIS DIRECTLY
-    tasks = []
-    for noise_type, levels in perturbed_files_map.items():
-        for level, files in levels.items():
-            for filename in files:
-                tasks.append((noise_type, level, filename))
-
     # Iterate through files (Outer Loop)
-    for noise_type, noise_level, filename in tasks:
-        full_path = os.path.join(perturbed_networks_directory, filename)
+    for filename, noise_type, noise_level, repeat, network_name in tqdm(tasks):
+        logger.info(f"Loading perturbed network: {filename}")
 
-        # A. Load Graph ONCE per file
-        try:
-            perturbed_G = nx.read_edgelist(full_path, delimiter="\t")
-        except FileNotFoundError:
-            print(f"Skipping missing file: {full_path}")
+        # 1. Load Perturbed Network
+        perturbed_G = _loadPerturbedNetworkFromFile(
+            perturbed_networks_directory, filename
+        )
+        # If the file is missing, skip
+        if perturbed_G is None:
+            print(f"Skipping missing perturbed network file: {filename}")
+            logger.warning(
+                f"Perturbed network file not found: {filename}. File skipped."
+            )
             continue
 
-        # B. Run all algorithms on this specific graph
-        batch_results = []
+        # 2. Filter seeds to only those present in the network
+        # Only necessary when edges were removed (nodes may have been isolated/removed)
+        if noise_type == "removed":
+            seed_groups_in_network = filterForSeedsInNetwork(
+                perturbed_G, seed_groups, filename
+            )
+        else:
+            seed_groups_in_network = seed_groups
 
+        # 3. Run all algorithms on this specific graph
         for algo in [algo for algo, active in algorithms_config.items() if active]:
-            for seed_id, seed_nodes in seed_groups.items():
-                # 1. Recover Modules
-                # recovered_mod = run_algorithm(perturbed_G, algo_name, seed_nodes)
-                recovered_mod = ["geneA", "geneC"]  # Mock
+            # Also start the algorithm on each individual seed group
+            batch_results = []
+            for seed_id, seed_nodes in seed_groups_in_network.items():
+                # Get the modules on this perturbed network and then compare to baseline
+                row_of_results = _runAlgorithmAndSaveResultsToFile(
+                    perturbed_G=perturbed_G,
+                    algorithm_name=algo,
+                    noise_type=noise_type,
+                    noise_level=noise_level,
+                    repeat=repeat,
+                    filename=filename,
+                    seed_nodes=seed_nodes,
+                    seed_id=seed_id,
+                )
+                batch_results.append(row_of_results)
 
-                # 2. Compare to Baseline immediately
-                baseline_mod = baseline_cache[(algo, seed_id)]
-
-                # Calculate metrics (Replace with your actual comparison functions)
-                # jaccard = calculate_jaccard(baseline_mod, recovered_mod)
-                jaccard = 0.5  # Mock
-                overlap = len(set(baseline_mod).intersection(set(recovered_mod)))
-
-                # 3. Collect Result Row
-                row = [
-                    algo,
-                    noise_type,
-                    noise_level,
-                    filename,
-                    seed_id,
-                    len(seed_nodes),
-                    jaccard,
-                    overlap,
-                    0.0,
-                ]
-                batch_results.append(row)
-
-                # Optional: Save raw rank list to disk if needed (separate files)
-                if save_raw_modules:
-                    save_raw_to_disk(recovered_mod, filename, algo, seed_id)
-
-        # C. Write batch to CSV (Reduces I/O overhead compared to writing 1 by 1)
-        with open(output_csv_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerows(batch_results)
+            _saveBatchToDisk(
+                batch_results, output_file_location, algo, experiment_identifier
+            )
 
         # Explicitly delete graph to ensure memory is freed
         del perturbed_G
+        batch_results.clear()
     print("--- Benchmarking Complete ---")
 
 
-def save_raw_to_disk(module_list, filename, algo, seed_id):
-    # Construct a filename that identifies the run
-    # e.g., results/raw/autocore_noise0.05_diamond_seed1.txt
-    pass
+# Load a perturbed network
+def _loadPerturbedNetworkFromFile(perturbed_networks_directory: str, filename: str):
+    full_path = os.path.join(perturbed_networks_directory, filename)
+    try:
+        perturbed_G = nx.read_edgelist(full_path, delimiter="\t")
+        return perturbed_G
+    except FileNotFoundError:
+        print(f"Skipping missing file: {full_path}")
+        logger.warning(f"Perturbed network file not found: {full_path}. File skipped.")
+        return None
 
 
-# 2. Code to get the module recovery results once
+def _saveBatchToDisk(
+    results_batch: list[dict],
+    outputfile_location: str,
+    algorithm_name: str,
+    experiment_identifier: str,
+):
+    # Folder for output files
+    # Create if it does not yet exist
+    folder_path = Path(outputfile_location)
+    folder_path.mkdir(parents=True, exist_ok=True)
+    filename = f"results_{experiment_identifier}_{algorithm_name}.jsonl.gz"
+    filepath = folder_path / filename
 
-
-def recoverModules(G: nx.Graph, algorithm_name: str, starting_points: list):
-    # if and elifs to select the correct algorithm, run it and return the ranked list of nodes
-    # uses the functions in ModuleDetectionAlgorithms
-    pass
-
-
-def compareModules(baseline_modules: list, recovered_modules: list):
-    # orchestrator to compare two lists of modules
-    # runs a few different methods of comparison (probably complete ranking and also mainly top k ranking)
-    # Uses the functions in ModuleComparisonAlgorithms
-    pass
-
-
-# 3. Specify starting points for the module detection algorithms
-
-# 4. Get the results for baseline once
-
-# 5. Iterate over all perturbed networks, recover the modules, compare to baseline
-
-# %%
-
-##################################################
-# TESTING
-################################################
-
-baseline_network_path = (
-    "/Users/marlene/Documents/data/Data/Networks/PPIs/AutoCore_ppi/ppi2017_elist.txt"
-)
-
-perturbed_networks_directory = (
-    "/Users/marlene/Documents/data/Data/Networks/Perturbed_networks/autocore_ppis/"
-)
-
-
-perturbed_networks_instructions = {
-    "added": {
-        0.05: [
-            "autocore_ppi_added_edges_noise0p05_repeat0.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat1.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat2.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat3.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat4.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat5.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat6.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat7.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat8.txt",
-            "autocore_ppi_added_edges_noise0p05_repeat9.txt",
-        ],
-        0.1: [
-            "autocore_ppi_added_edges_noise0p1_repeat0.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat1.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat2.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat3.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat4.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat5.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat6.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat7.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat8.txt",
-            "autocore_ppi_added_edges_noise0p1_repeat9.txt",
-        ],
-        0.15: [
-            "autocore_ppi_added_edges_noise0p15_repeat0.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat1.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat2.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat3.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat4.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat5.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat6.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat7.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat8.txt",
-            "autocore_ppi_added_edges_noise0p15_repeat9.txt",
-        ],
-    },
-    "removed": {
-        0.05: [
-            "autocore_ppi_removed_edges_noise0p05_repeat0.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat1.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat2.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat3.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat4.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat5.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat6.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat7.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat8.txt",
-            "autocore_ppi_removed_edges_noise0p05_repeat9.txt",
-        ],
-        0.1: [
-            "autocore_ppi_removed_edges_noise0p1_repeat0.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat1.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat2.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat3.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat4.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat5.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat6.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat7.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat8.txt",
-            "autocore_ppi_removed_edges_noise0p1_repeat9.txt",
-        ],
-        0.15: [
-            "autocore_ppi_removed_edges_noise0p15_repeat0.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat1.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat2.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat3.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat4.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat5.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat6.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat7.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat8.txt",
-            "autocore_ppi_removed_edges_noise0p15_repeat9.txt",
-        ],
-    },
-}
-
-"""
-One could consider making the map automatically like this:
-def generate_perturbation_map(directory_path: str) -> dict:
-    
-    Scans a directory and automatically builds the structured map 
-    of perturbed networks based on filenames.
-    
-    Expected format: *_{type}_edges_noise{level}_repeat{N}.txt
-    e.g. "autocore_ppi_added_edges_noise0p05_repeat0.txt"
-   
-    # Structure: Map[NoiseType][NoiseLevel] = List of Files
-    file_map = {}
-    
-    # Regex to capture: (added/removed), (0p05), and the full filename
-    # Looks for: "added_edges" or "removed_edges" followed by "noise"
-    pattern = re.compile(r"(added|removed)_edges_noise(\d+p\d+)_repeat(\d+)")
-
-    path_obj = Path(directory_path)
-    
-    # Get all .txt files
-    files = sorted([f.name for f in path_obj.glob("*.txt")])
-    
-    for filename in files:
-        match = pattern.search(filename)
-        if match:
-            p_type = match.group(1)  # "added" or "removed"
-            p_level_str = match.group(2) # "0p05"
-            
-            # Convert "0p05" -> 0.05 (float)
-            p_level = float(p_level_str.replace("p", "."))
-            
-            # Initialize dict structure if missing
-            if p_type not in file_map:
-                file_map[p_type] = {}
-            if p_level not in file_map[p_type]:
-                file_map[p_type][p_level] = []
-            
-            file_map[p_type][p_level].append(filename)
-            
-    return file_map
-"""
-
-# Would be nice to have both ways of degree normalizing in RWR as options
-algorithms_to_test = {
-    "1stNeighbors": False,
-    "DIAMOnD": True,
-    "DOMINO": False,
-    "ROBUST": False,
-    "ROBUST(bias_aware)": False,
-    "RandomWalkwithRestart": True,
-}
-
-algorithm_starting_points = {
-    "seed_A_size_1": ["66008"],
-    "seed_A_size_5": ["5347", "66008", "5347", "66008", "5347"],
-}
-
-output_csv_path = "/Users/marlene/Documents/data/Projects/23_noise_in_networks_systematic/Code/NoiseInNetworks/notebooks/testing_algorithms/test.csv"
-
-
-# %%
-
-benchmarkModuleDetectionAlgorithms(
-    baseline_network_path=baseline_network_path,
-    perturbed_networks_directory=perturbed_networks_directory,
-    perturbed_files_map=perturbed_networks_instructions,
-    algorithms_config=algorithms_to_test,
-    seed_groups=algorithm_starting_points,
-    output_csv_path=output_csv_path,
-    c
-)
-
-# %%
+    # json.dumps(default=list) makes sure that objects which can't be serialized otherwise
+    # are handeled. In this case this is for the 'set' object, which are turned into lists.
+    with gzip.open(filepath, "ab") as f:
+        for one_result in results_batch:
+            line = json.dumps(one_result, default=list).encode("utf-8") + b"\n"
+            f.write(line)

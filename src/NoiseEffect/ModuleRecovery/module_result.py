@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# Currently all algorithms should not return the seeds
 @dataclass
 class ModuleResult:
     """
@@ -26,14 +27,12 @@ class ModuleResult:
             # For set-based, just return the set (can't subset without ranking)
             return self.nodes_set
 
-    '''
     def as_set(self) -> Set[str]:
         """Convert to set regardless of type."""
-        if self.algorithm_type == 'ranked':
+        if self.algorithm_type == "ranked":
             return set(self.nodes_ranked.keys())
         else:
             return self.nodes_set
-    '''
 
     def size(self) -> int:
         """Get number of nodes in the module."""

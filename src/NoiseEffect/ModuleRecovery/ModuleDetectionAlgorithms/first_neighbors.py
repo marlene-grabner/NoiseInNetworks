@@ -11,20 +11,15 @@ def firstNeighbors(G: nx.Graph, seed_nodes: list[str]) -> ModuleResult:
     ModuleResult
         Standardized result object containing set of nodes.
     """
-    # Validate seeds
-    valid_seeds = [s for s in seed_nodes if s in G.nodes()]
-
-    if not valid_seeds:
-        raise ValueError("No valid seed nodes found in graph!")
 
     # Collect all neighbors
     neighbors = set()  # Do not include seeds themselves
-    for seed in valid_seeds:
+    for seed in seed_nodes:
         neighbors.update(G.neighbors(seed))
 
     # RETURN ModuleResult object
     return ModuleResult(
         nodes_set=neighbors,
         algorithm_type="set",
-        metadata={"n_valid_seeds": len(valid_seeds), "module_size": len(neighbors)},
+        metadata={"n_valid_seeds": len(seed_nodes), "module_size": len(neighbors)},
     )

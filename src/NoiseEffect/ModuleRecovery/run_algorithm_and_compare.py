@@ -5,7 +5,6 @@ import json
 import gzip
 from pathlib import Path
 from .utils import _saveRawToDisk
-from .CompareResults.compare_results_interim import compareResults
 from .start_algorithm import startAlgorithm
 from .module_result import ModuleResult
 
@@ -24,6 +23,7 @@ def _runAlgorithmAndSaveResultsToFile(
     filename: str,
     seed_nodes: list[str],
     seed_id: str,
+    domino_env_path: str = None,
 ):
     if len(seed_nodes) == 0:
         results = _handleEmptySeeds(
@@ -40,7 +40,10 @@ def _runAlgorithmAndSaveResultsToFile(
 
     # 1. Recover Modules
     perturbedResult_obj = startAlgorithm(
-        algorithm=algorithm_name, G=perturbed_G, seed_nodes=seed_nodes
+        algorithm=algorithm_name,
+        G=perturbed_G,
+        seed_nodes=seed_nodes,
+        domino_env_path=domino_env_path,
     )
 
     # Log convergence info if available

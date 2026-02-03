@@ -14,7 +14,9 @@ from .module_result import ModuleResult
 logger = logging.getLogger(__name__)
 
 
-def startAlgorithm(algorithm: str, G: nx.Graph, seed_nodes: list[str]) -> ModuleResult:
+def startAlgorithm(
+    algorithm: str, G: nx.Graph, seed_nodes: list[str], domino_env_path: str = None
+) -> ModuleResult:
     if algorithm == "1stNeighbors":
         results = firstNeighbors(G=G, seed_nodes=seed_nodes)
 
@@ -23,7 +25,7 @@ def startAlgorithm(algorithm: str, G: nx.Graph, seed_nodes: list[str]) -> Module
         results = ModuleResult(nodes_set=set(), algorithm_type="ranked")
 
     elif algorithm == "DOMINO":
-        results = domino(G=G, seeds=seed_nodes)
+        results = domino(G=G, seeds=seed_nodes, DOMINO_PYTHON=domino_env_path)
 
     elif algorithm == "ROBUST":
         print("Not implemented yet")

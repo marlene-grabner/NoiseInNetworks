@@ -27,6 +27,7 @@ def benchmarkModuleDetectionAlgorithms(
     seed_groups: dict[str, list[str]],
     output_file_location: str,
     experiment_identifier: str,
+    domino_env_path: str = None,
 ):
     # 1.
     # Initialize output CSV
@@ -51,6 +52,7 @@ def benchmarkModuleDetectionAlgorithms(
         seed_groups=cleaned_seed_groups,
         output_file_location=output_file_location,
         experiment_identifier=experiment_identifier,
+        domino_env_path=domino_env_path,
     )
     print("--- Baseline processing complete. Loading perturbed networks. ---")
 
@@ -71,9 +73,9 @@ def benchmarkModuleDetectionAlgorithms(
         tasks=tasks,
         algorithms_config=algorithms_config,
         seed_groups=cleaned_seed_groups,
-        baseline_cache=baseline_cache,
         output_file_location=output_file_location,
         experiment_identifier=experiment_identifier,
+        domino_env_path=domino_env_path,
     )
 
 
@@ -89,6 +91,7 @@ def _computeBaselineModules(
     seed_groups: dict[str, list[str]],
     output_file_location: str,
     experiment_identifier: str,
+    domino_env_path: str = None,
 ):
     logger.info("Starting algorithms on baseline network...")
     baseline_cache = {}
@@ -99,9 +102,13 @@ def _computeBaselineModules(
             logger.info(
                 f"Running {algo} on baseline network ({baseline_network_path}) with seed {seed_id}"
             )
+
             # Run algorithm on network
             results = startAlgorithm(
-                algorithm=algo, G=baseline_G, seed_nodes=seed_nodes
+                algorithm=algo,
+                G=baseline_G,
+                seed_nodes=seed_nodes,
+                domino_env_path=domino_env_path,
             )
 
             # Get the returned modules
@@ -153,9 +160,9 @@ def _computeModulesOnPerturbedNetworks(
     tasks: list[tuple[str, str, str, str, str]],
     algorithms_config: dict[str, bool],
     seed_groups: dict[str, list[str]],
-    baseline_cache: dict,
     output_file_location: str,
     experiment_identifier: str,
+    domino_env_path: str = None,
 ):
     # Iterate through files (Outer Loop)
     for filename, noise_type, noise_level, repeat, network_name in tqdm(tasks):
@@ -197,6 +204,7 @@ def _computeModulesOnPerturbedNetworks(
                     filename=filename,
                     seed_nodes=seed_nodes,
                     seed_id=seed_id,
+                    domino_env_path=domino_env_path,
                 )
                 batch_results.append(row_of_results)
 

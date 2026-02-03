@@ -12,7 +12,7 @@ def domino(
     G: nx.Graph,
     seeds: list,
     keep_files=False,
-    DOMIN_PYTHON: str = "/opt/miniconda3/envs/domino-env/bin/python",
+    DOMINO_PYTHON: str = "/opt/miniconda3/envs/domino-env/bin/python",  # on my machine
 ):
     """
     Runs DOMINO on a NetworkX graph and a list of seed nodes.
@@ -28,8 +28,6 @@ def domino(
 
     # --- CONFIGURATION ---
     # 1. Path to the Python executable inside your domino-env
-    #    On a cluster, you might set this via an environment variable like os.getenv("DOMINO_PYTHON_PATH")
-    DOMINO_PYTHON = "/opt/miniconda3/envs/domino-env/bin/python"
 
     # 2. Path to the scripts (slicer and your patched serial runner)
     #    Ideally, put 'domino_serial.py' in the same folder as this wrapper.

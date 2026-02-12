@@ -24,7 +24,7 @@ class ModuleAnalyzer:
                         # Are the results ranked indicating RWR?
                         if isinstance(raw_results, dict):
                             result_data = raw_results
-                            result_type = "dict"
+                            result_type = "rwr"
 
                         # Are the results just a set of nodes? e.g. 1st Neigbors or DOMINO
                         elif isinstance(raw_results, list):

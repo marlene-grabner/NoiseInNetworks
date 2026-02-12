@@ -15,36 +15,60 @@ def applyJaccard(df, baselines, k=100):
 
         baseline_data = baselines[seed_id]
         perturbed_data = row["results"]
+        result_type = row.get("result_type")
 
-        return _computeScore(baseline_data, perturbed_data, k)
+        return _computeScore(baseline_data, perturbed_data, result_type, k)
 
     return df.apply(row_processor, axis=1)
 
 
-def _computeScore(baseline, perturbed, k):
+def _computeScore(baseline, perturbed, result_type, k):
     """
     Checks data type and selects the appropriate logic for each case.
     """
-    # 1. Handle Ranked Results (RWRs)
-    # Get converted to sets, and top-k are picked
-    if isinstance(baseline, list) and isinstance(perturbed, list) | isinstance(
-        baseline, set
-    ) & isinstance(perturbed, list) | isinstance(baseline, list) & isinstance(
-        perturbed, set
-    ):
+    # Standardize
+    base_set = set()
+    pert_set = set()
+
+    # Handle the case of multiple modules (e.g. DOMINO)
+    if result_type == "multi_module":
         return _jaccardForMultiModule(baseline, perturbed)
 
-    elif isinstance(baseline, dict) and isinstance(perturbed, dict):
+    # Handle ranked RWR results
+    elif result_type == "rwr":
         base_set = _getTopkSet(baseline, k)
         pert_set = _getTopkSet(perturbed, k)
 
-    # 2. Handle single sets (1st Neighbors)
-    elif isinstance(baseline, set) and isinstance(perturbed, set):
-        base_set = baseline
-        pert_set = perturbed
+    # Handle single sets (1st Neighbors)
+    elif result_type == "single_module":
+        base_set = set(baseline) if baseline else set()
+        pert_set = set(perturbed) if perturbed else set()
 
+    # If results are empty return 0 if only the perturbed is empty, 1 if both are empty
+    elif result_type == "empty":
+        if len(baseline) == 0:
+            print(
+                "Warning: Both baseline and perturbed results are empty. Returning Jaccard of 1.0."
+            )
+            return 1.0
+        else:
+            print(
+                "Warning: Perturbed results are empty but baseline is not. Returning Jaccard of 0.0."
+            )
+            return 0.0
+
+    # Calculate Jaccard
     intersection = len(base_set.intersection(pert_set))
     union = len(base_set.union(pert_set))
+
+    # Handle the case where both sets are empty
+    if union == 0:
+        print(base_set, pert_set)
+        if not base_set and not pert_set:
+            print(
+                "Warning: Both baseline and perturbed results are empty, despite not being classified as empty. Returning Jaccard of 1.0."
+            )
+            return 1.0
 
     return intersection / union if union > 0 else 0.0
 

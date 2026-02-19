@@ -12,6 +12,7 @@ def generateNoiseNetworksFromBaseline(
     path_to_edgelist: str,
     folder_to_save_perturbed: str,
     noise_levels: list[float],
+    noise_types: list[str] = ["added_edges", "removed_edges"],
     num_repeats_per_noise_level: int = 10,
     network_name: str = "network",
 ):
@@ -33,27 +34,35 @@ def generateNoiseNetworksFromBaseline(
     # Load the baseline network
     g, idx_to_node, node_to_idx = _loadBaseline(path_to_edgelist)
     for noise_level in noise_levels:
-        num_edges_to_modify = _calcualteNumberOfEdgesToModify(g, noise_level)
+        num_edges_to_modify = _calcualteNumberOfEdgesToModify(
+            g, noise_level, noise_types
+        )
         for repeat in range(num_repeats_per_noise_level):
-            G_added, G_removed = _introduceNoise(g, num_edges_to_modify)
-            _saveEdgelists(
-                G_added,
-                idx_to_node,
-                folder_to_save_perturbed,
-                noise_level,
-                repeat,
-                network_name,
-                modification_type="added_edges",
-            )
-            _saveEdgelists(
-                G_removed,
-                idx_to_node,
-                folder_to_save_perturbed,
-                noise_level,
-                repeat,
-                network_name,
-                modification_type="removed_edges",
-            )
+            for noise_type in noise_types:
+                if noise_type == "added_edges":
+                    # Introduce noise by adding edges
+                    G_added = _addEdgesToNetwork(g, num_edges_to_modify)
+                    _saveEdgelists(
+                        G_added,
+                        idx_to_node,
+                        folder_to_save_perturbed,
+                        noise_level,
+                        repeat,
+                        network_name,
+                        modification_type="added_edges",
+                    )
+                elif noise_type == "removed_edges":
+                    # Introduce noise by removing edges
+                    G_removed = _removeEdgesFromNetwork(g, num_edges_to_modify)
+                    _saveEdgelists(
+                        G_removed,
+                        idx_to_node,
+                        folder_to_save_perturbed,
+                        noise_level,
+                        repeat,
+                        network_name,
+                        modification_type="removed_edges",
+                    )
 
 
 ############################################################
@@ -85,9 +94,9 @@ def _loadBaseline(path_to_edgelist: str):
 # 3. Introduce noise by adding and removing edges
 
 
-def _introduceNoise(g: nx.Graph, num_edges_to_modify: int):
+def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int):
     """
-    Overall function to introduce noise by adding and removing edges.
+    Overall function to introduce noise by adding edges.
 
     :param g: Original network
     :type g: nx.Graph
@@ -97,14 +106,25 @@ def _introduceNoise(g: nx.Graph, num_edges_to_modify: int):
     edges_to_add = _randomEdgesToAdd(g, num_edges_to_modify)
     G_added = g.copy()
     G_added.add_edges_from(edges_to_add)
+    return G_added
 
+
+def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int):
+    """
+    Overall function to introduce noise by removing edges.
+
+    :param g: Original network
+    :type g: nx.Graph
+    :param num_edges_to_modify: Number of edges to add and remove
+    :type num_edges_to_modify: int
+    """
     edges_to_remove = _randomEdgesToRemove(g, num_edges_to_modify)
     G_removed = g.copy()
     G_removed.remove_edges_from(edges_to_remove)
-    return G_added, G_removed
+    return G_removed
 
 
-def _calcualteNumberOfEdgesToModify(g, noise_level):
+def _calcualteNumberOfEdgesToModify(g, noise_level, noise_types):
     """
     Calculates how many edges shall be modified based on the noise level.
 
@@ -112,14 +132,17 @@ def _calcualteNumberOfEdgesToModify(g, noise_level):
     :type g: nx.Graph
     :param noise_level: Noise level to apply
     :type noise_level: float
+    :param noise_types: Types of noise to apply (e.g., ["added_edges", "removed_edges"])
+    :type noise_types: list[str]
     """
+
     num_edges = len(g.edges)
     num_modify = int(num_edges * noise_level)  # Number of edges to modify
 
     # Check if results make sense
     if num_modify <= 0:
         raise ValueError("Number of edges to modify can not be negative or zero.")
-    if num_modify >= num_edges:
+    if "removed_edges" in noise_types and num_modify >= num_edges:
         raise ValueError("Can not remove all edges in the graph.")
 
     return num_modify

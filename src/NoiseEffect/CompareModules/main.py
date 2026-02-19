@@ -4,7 +4,9 @@ from NoiseEffect.CompareModules.remove_seeds import _removeSeeds
 import pandas as pd
 
 
-def compareModules(file_paths: list[str], metric: str, top_k: int):
+def compareModules(
+    file_paths: list[str], metric: str, top_k: int, return_analyzer_df: bool = False
+):
 
     analyzer = ModuleAnalyzer()
     analyzer._loadData(file_paths)
@@ -23,5 +25,8 @@ def compareModules(file_paths: list[str], metric: str, top_k: int):
         .agg(["mean", "median", "std"])
         .reset_index()
     )
+
+    if return_analyzer_df:
+        return analyzer.df
 
     return summary_df

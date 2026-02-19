@@ -39,6 +39,11 @@ def _computeScore(baseline, perturbed, result_type, k):
         base_set = _getTopkSet(baseline, k)
         pert_set = _getTopkSet(perturbed, k)
 
+    # Handle DIAMOnD results
+    elif result_type == "DIAMOnD":
+        base_set = set(node for node, score in baseline)
+        pert_set = set(node for node, score in perturbed)
+
     # Handle single sets (1st Neighbors)
     elif result_type == "single_module":
         base_set = set(baseline) if baseline else set()

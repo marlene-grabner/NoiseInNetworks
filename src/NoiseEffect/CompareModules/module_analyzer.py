@@ -19,10 +19,17 @@ class ModuleAnalyzer:
                 for line in f:
                     try:
                         entry = json.loads(line)
+                        algorithm = entry.get("metadata_run", {}).get(
+                            "algorithm", "unknown_algorithm"
+                        )
                         raw_results = entry.get("module_results", None)
 
+                        if algorithm == "DIAMOnD":
+                            result_data = raw_results
+                            result_type = "DIAMOnD"
+
                         # Are the results ranked indicating RWR?
-                        if isinstance(raw_results, dict):
+                        elif isinstance(raw_results, dict):
                             result_data = raw_results
                             result_type = "rwr"
 

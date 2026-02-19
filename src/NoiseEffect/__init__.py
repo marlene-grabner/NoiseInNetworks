@@ -5,3 +5,4 @@ from .BenchmarkAlgorithms import plotSpreadOfStabilityResults
 from .NoiseNetworks import generateNoiseNetworksFromBaseline
 from .ModuleRecovery import benchmarkModuleDetectionAlgorithms
 from .SeedStrucutralMetrics import computeSeedStrucutralMetrics
+from .CompareModules import compareModules

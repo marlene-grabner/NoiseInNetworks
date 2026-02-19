@@ -114,18 +114,15 @@ def _computeBaselineModules(
             # Get the returned modules
             if results.algorithm_type == "set":
                 module_results = results.nodes_set
-            else:
+            elif results.algorithm_type == "ranked":
                 # Algorihm type is 'ranked'
                 module_results = results.nodes_ranked
+            elif results.algorithm_type == "diamond":
+                # Algorithm type is 'diamond'
+                module_results = results.nodes_diamond
 
             # Metadata about this run
-            if algo in [
-                "RandomWalkWithRestartRowNormalization",
-                "RandomWalkWithRestartSymmetricNormalization",
-            ]:
-                run_metadata = results.metadata
-            else:
-                run_metadata = {}
+            run_metadata = results.metadata
 
             metrics_dict = {
                 "metadata_network": {

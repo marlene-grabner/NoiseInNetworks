@@ -86,6 +86,7 @@ def randomWalkWithRestartSymmetricNormalization(
         nodes_ranked=nodes_to_scores_sorted,
         algorithm_type="ranked",
         metadata={
+            "algorithm": "RandomWalkWithRestartSymmetricNormalization",
             "converged": converged,
             "iterations": i + 1,
             "restart_prob": restart,

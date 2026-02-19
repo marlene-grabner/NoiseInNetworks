@@ -6,6 +6,7 @@ from .ModuleDetectionAlgorithms.random_walk_with_restart_row_normalization impor
 from .ModuleDetectionAlgorithms.random_walk_with_restart_symmetric_normalization import (
     randomWalkWithRestartSymmetricNormalization,
 )
+from .ModuleDetectionAlgorithms.diamond import diamond
 from .ModuleDetectionAlgorithms.domino import domino
 from .ModuleDetectionAlgorithms.first_neighbors import firstNeighbors
 from .module_result import ModuleResult
@@ -21,8 +22,7 @@ def startAlgorithm(
         results = firstNeighbors(G=G, seed_nodes=seed_nodes)
 
     elif algorithm == "DIAMOnD":
-        logger.warning("DIAMOnD is not implemented yet.")
-        results = ModuleResult(nodes_set=set(), algorithm_type="ranked")
+        results = diamond(G=G, S=seed_nodes)
 
     elif algorithm == "DOMINO":
         results = domino(G=G, seeds=seed_nodes, DOMINO_PYTHON=domino_env_path)

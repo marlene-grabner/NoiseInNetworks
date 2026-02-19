@@ -79,6 +79,7 @@ def randomWalkWithRestartRowNormalization(
         nodes_ranked=nodes_to_probs_sorted,
         algorithm_type="ranked",
         metadata={
+            "algorithm": "RandomWalkWithRestartRowNormalization",
             "converged": converged,
             "iterations": i + 1,
             "restart_prob": restart,

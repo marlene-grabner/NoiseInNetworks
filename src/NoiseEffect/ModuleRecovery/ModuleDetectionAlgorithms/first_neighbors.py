@@ -21,5 +21,9 @@ def firstNeighbors(G: nx.Graph, seed_nodes: list[str]) -> ModuleResult:
     return ModuleResult(
         nodes_set=neighbors,
         algorithm_type="set",
-        metadata={"n_valid_seeds": len(seed_nodes), "module_size": len(neighbors)},
+        metadata={
+            "algorithm": "FirstNeighbors",
+            "n_valid_seeds": len(seed_nodes),
+            "module_size": len(neighbors),
+        },
     )

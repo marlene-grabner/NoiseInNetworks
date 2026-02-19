@@ -127,7 +127,11 @@ def domino(
         return ModuleResult(
             nodes_set=modules,
             algorithm_type="set",
-            metadata={"n_valid_seeds": len(seeds), "module_sizes": module_sizes},
+            metadata={
+                "algorithm": "DOMINO",
+                "n_valid_seeds": len(seeds),
+                "module_sizes": module_sizes,
+            },
         )
 
     finally:

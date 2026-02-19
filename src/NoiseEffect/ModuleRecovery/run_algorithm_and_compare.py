@@ -85,18 +85,13 @@ def _dictForSaving(
     # Get the returned modules
     if results_obj.algorithm_type == "set":
         module_results = results_obj.nodes_set
-    else:
-        # Algorihm type is 'ranked'
+    elif results_obj.algorithm_type == "ranked":
         module_results = results_obj.nodes_ranked
+    elif results_obj.algorithm_type == "diamond":
+        module_results = results_obj.nodes_diamond
 
     # Metadata about this run
-    if algorithm_name in [
-        "RandomWalkWithRestartRowNormalization",
-        "RandomWalkWithRestartSymmetricNormalization",
-    ]:
-        run_metadata = results_obj.metadata
-    else:
-        run_metadata = {}
+    run_metadata = results_obj.metadata
 
     results = {
         "metadata_network": {

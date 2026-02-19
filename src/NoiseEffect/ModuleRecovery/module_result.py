@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Set, List, Optional
+from typing import Dict, Set, List, Optional, Tuple
 import numpy as np
 import logging
 
@@ -14,9 +14,10 @@ class ModuleResult:
     Standardized output format for all module detection algorithms.
     """
 
-    nodes_ranked: Optional[Dict[str, float]] = None  # For RWR, DIAMOnD, ROBUST
+    nodes_ranked: Optional[Dict[str, float]] = None  # For RWR, ROBUST
     nodes_set: Optional[Set[str]] = None  # For DOMINO, 1st Neighbors
-    algorithm_type: str = "ranked"  # 'ranked' or 'set'
+    nodes_diamond: Optional[List[Tuple[str, float]]] = None  # For DIAMOnD
+    algorithm_type: str = "ranked"  # 'ranked', 'set', 'diamond
     metadata: Optional[Dict] = None
 
     def get_top_k(self, k: int) -> Set[str]:

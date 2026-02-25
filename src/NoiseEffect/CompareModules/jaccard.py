@@ -30,6 +30,10 @@ def _computeScore(baseline, perturbed, result_type, k):
     base_set = set()
     pert_set = set()
 
+    # Handle the case that an algorithm returned null
+    if result_type == "null_result":
+        return 0.0
+
     # Handle the case of multiple modules (e.g. DOMINO)
     if result_type == "multi_module":
         return _jaccardForMultiModule(baseline, perturbed)

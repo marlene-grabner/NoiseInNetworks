@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+import gzip
 
 
 class ModuleAnalyzer:
@@ -15,7 +16,7 @@ class ModuleAnalyzer:
             file_paths = [file_paths]
 
         for path in file_paths:
-            with open(path, "r") as f:
+            with gzip.open(path, "rt", encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line)
@@ -48,7 +49,13 @@ class ModuleAnalyzer:
                                 # If we only have a single list, convert to single set
                                 result_data = set(raw_results)
                                 result_type = "single_module"
+
+                        elif raw_results is None:
+                            result_data = set()
+                            result_type = "null_result"
+
                         else:
+                            print(type(raw_results))
                             print(
                                 f"Unexpected type for 'module_results' in line: {line}"
                             )

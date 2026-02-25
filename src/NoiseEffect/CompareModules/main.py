@@ -5,7 +5,10 @@ import pandas as pd
 
 
 def compareModules(
-    file_paths: list[str], metric: str, top_k: int, return_analyzer_df: bool = False
+    file_paths: list[str],  # as jsonl.gz file
+    metric: str,
+    top_k: int,
+    return_analyzer_df: bool = False,
 ):
 
     analyzer = ModuleAnalyzer()

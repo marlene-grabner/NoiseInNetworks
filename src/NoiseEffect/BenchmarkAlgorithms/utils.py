@@ -7,26 +7,26 @@ from sklearn.metrics import (
 
 
 def convertPartitionToLabels(partition, num_nodes):
-        """
-        Converts a partition (list of sets of node IDs) to a labels array.
+    """
+    Converts a partition (list of sets of node IDs) to a labels array.
 
-        This version infers the total number of nodes by finding the maximum
-        node ID in the partition. It assumes nodes are indexed from 0.
-        """
-        # Handle the edge case of an empty or invalid partition
-        if not partition or not any(partition):
-            return np.array([], dtype=int)
+    This version infers the total number of nodes by finding the maximum
+    node ID in the partition. It assumes nodes are indexed from 0.
+    """
+    # Handle the edge case of an empty or invalid partition
+    if not partition or not any(partition):
+        return np.array([], dtype=int)
 
-        # 1. Create the labels array. Using np.full with -1 is often safer
-        #    to make it obvious if a node was missed.
-        labels = np.full(num_nodes, -1, dtype=int)
+    # 1. Create the labels array. Using np.full with -1 is often safer
+    #    to make it obvious if a node was missed.
+    labels = np.full(num_nodes, -1, dtype=int)
 
-        # 2. Populate the array with cluster IDs.
-        for cluster_id, community in enumerate(partition):
-            for node in community:
-                labels[node] = cluster_id
+    # 2. Populate the array with cluster IDs.
+    for cluster_id, community in enumerate(partition):
+        for node in community:
+            labels[node] = cluster_id
 
-        return labels
+    return labels
 
 
 def getMetrics(clustering_1, clustering_2):
@@ -79,5 +79,3 @@ def getMetrics(clustering_1, clustering_2):
             "ari": np.nan,
             "ami": np.nan,
         }
-    
-

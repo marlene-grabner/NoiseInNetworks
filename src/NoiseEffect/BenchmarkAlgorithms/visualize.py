@@ -75,7 +75,7 @@ def plotStabilityResults(
             capsize=5,  # Adds the little caps on the error bars
             align="center",
             alpha=0.7,
-            color="midnightblue",
+            color="#0b2545",
         )
 
         # Iterate through our data. If a mean is NaN, place text on the axis.

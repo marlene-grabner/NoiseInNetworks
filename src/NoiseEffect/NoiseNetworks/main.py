@@ -205,6 +205,9 @@ def _randomEdgesToAdd(g, num_modify):
 
     # 2. Directly sample unique edges to add.
     edges_to_add = random.sample(possible_edges_to_add, num_modify)
+
+    del possible_edges_to_add  # Free memory
+
     return edges_to_add
 
 
@@ -227,9 +230,10 @@ def _randomEdgesToRemove(g, num_modify):
 # 5. Targeted noise introduction
 
 
-def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
+def _targetedRemoval(g: nx.Graph, num_modify: int, target: str):
     """
-    Randomly samples edges to remove, heavily weighting edges connected to high-degree hubs.
+    Randomly samples edges to remove, weighting edges connected to
+    high or low degree hubs depending on the target.
     """
     edges = list(g.edges())
     degrees = dict(g.degree())
@@ -256,9 +260,10 @@ def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
     return edges_to_remove
 
 
-def _targetedRemoval(g: nx.Graph, num_modify: int, target: str):
+def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
     """
-    Randomly samples non-edges to add, heavily weighting edges between high-degree nodes.
+    Randomly samples non-edges to add, heavily weighting edges between
+    high or low degree nodes depending on the target.
     """
     possible_edges_to_add = list(nx.non_edges(g))
 
@@ -288,6 +293,8 @@ def _targetedRemoval(g: nx.Graph, num_modify: int, target: str):
         len(possible_edges_to_add), size=num_modify, replace=False, p=probabilities
     )
     edges_to_add = [possible_edges_to_add[i] for i in chosen_indices]
+
+    del possible_edges_to_add  # Free memory
 
     return edges_to_add
 

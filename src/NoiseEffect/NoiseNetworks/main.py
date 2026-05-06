@@ -1,5 +1,6 @@
 import networkx as nx
 import random
+import numpy as np
 
 ##################################################
 # Code generates networks with artificially,
@@ -12,7 +13,14 @@ def generateNoiseNetworksFromBaseline(
     path_to_edgelist: str,
     folder_to_save_perturbed: str,
     noise_levels: list[float],
-    noise_types: list[str] = ["added_edges", "removed_edges"],
+    noise_types: list[str] = [
+        "added_edges",
+        "removed_edges",
+        "targeted_hub_addition",
+        "targeted_hub_removal",
+        "targeted_periphery_addition",
+        "targeted_periphery_removal",
+    ],
     num_repeats_per_noise_level: int = 10,
     network_name: str = "network",
 ):
@@ -39,30 +47,26 @@ def generateNoiseNetworksFromBaseline(
         )
         for repeat in range(num_repeats_per_noise_level):
             for noise_type in noise_types:
-                if noise_type == "added_edges":
-                    # Introduce noise by adding edges
-                    G_added = _addEdgesToNetwork(g, num_edges_to_modify)
-                    _saveEdgelists(
-                        G_added,
-                        idx_to_node,
-                        folder_to_save_perturbed,
-                        noise_level,
-                        repeat,
-                        network_name,
-                        modification_type="added_edges",
+                # Generate perturbed graph based on the action word
+                if "add" in noise_type:
+                    G_perturbed = _addEdgesToNetwork(g, num_edges_to_modify, noise_type)
+                elif "remov" in noise_type:
+                    G_perturbed = _removeEdgesFromNetwork(
+                        g, num_edges_to_modify, noise_type
                     )
-                elif noise_type == "removed_edges":
-                    # Introduce noise by removing edges
-                    G_removed = _removeEdgesFromNetwork(g, num_edges_to_modify)
-                    _saveEdgelists(
-                        G_removed,
-                        idx_to_node,
-                        folder_to_save_perturbed,
-                        noise_level,
-                        repeat,
-                        network_name,
-                        modification_type="removed_edges",
-                    )
+                else:
+                    raise ValueError(f"Unknown noise type: {noise_type}")
+
+                # Save the graph
+                _saveEdgelists(
+                    G_perturbed,
+                    idx_to_node,
+                    folder_to_save_perturbed,
+                    noise_level,
+                    repeat,
+                    network_name,
+                    modification_type=noise_type,
+                )
 
 
 ############################################################
@@ -94,7 +98,7 @@ def _loadBaseline(path_to_edgelist: str):
 # 3. Introduce noise by adding and removing edges
 
 
-def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int):
+def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str):
     """
     Overall function to introduce noise by adding edges.
 
@@ -103,13 +107,30 @@ def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int):
     :param num_edges_to_modify: Number of edges to add and remove
     :type num_edges_to_modify: int
     """
-    edges_to_add = _randomEdgesToAdd(g, num_edges_to_modify)
+    # Map the string to the correct function and target
+    dispatch = {
+        "added_edges": lambda: _randomEdgesToAdd(g, num_edges_to_modify),
+        "targeted_hub_addition": lambda: _targetedAddition(
+            g, num_edges_to_modify, target="hubs"
+        ),
+        "targeted_periphery_addition": lambda: _targetedAddition(
+            g, num_edges_to_modify, target="periphery"
+        ),
+    }
+
+    if noise_type not in dispatch:
+        raise ValueError(f"Addition strategy for '{noise_type}' is not defined.")
+
+    # Execute the mapped function
+    edges_to_add = dispatch[noise_type]()
+
+    # Add the new edges to the graph
     G_added = g.copy()
     G_added.add_edges_from(edges_to_add)
     return G_added
 
 
-def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int):
+def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str):
     """
     Overall function to introduce noise by removing edges.
 
@@ -118,7 +139,21 @@ def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int):
     :param num_edges_to_modify: Number of edges to add and remove
     :type num_edges_to_modify: int
     """
-    edges_to_remove = _randomEdgesToRemove(g, num_edges_to_modify)
+    dispatch = {
+        "removed_edges": lambda: _randomEdgesToRemove(g, num_edges_to_modify),
+        "targeted_hub_removal": lambda: _targetedRemoval(
+            g, num_edges_to_modify, target="hubs"
+        ),
+        "targeted_periphery_removal": lambda: _targetedRemoval(
+            g, num_edges_to_modify, target="periphery"
+        ),
+    }
+
+    if noise_type not in dispatch:
+        raise ValueError(f"Removal strategy for '{noise_type}' is not defined.")
+
+    edges_to_remove = dispatch[noise_type]()
+
     G_removed = g.copy()
     G_removed.remove_edges_from(edges_to_remove)
     return G_removed
@@ -146,6 +181,10 @@ def _calcualteNumberOfEdgesToModify(g, noise_level, noise_types):
         raise ValueError("Can not remove all edges in the graph.")
 
     return num_modify
+
+
+############################################################
+# 5. Random noise introduction
 
 
 def _randomEdgesToAdd(g, num_modify):
@@ -182,6 +221,75 @@ def _randomEdgesToRemove(g, num_modify):
     # Directly sample unique edges to remove
     edges_to_remove = random.sample(edges, num_modify)
     return edges_to_remove
+
+
+############################################################
+# 5. Targeted noise introduction
+
+
+def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
+    """
+    Randomly samples edges to remove, heavily weighting edges connected to high-degree hubs.
+    """
+    edges = list(g.edges())
+    degrees = dict(g.degree())
+
+    # Calculate weights based on the product of degrees
+    if target == "hubs":
+        weights = np.array([degrees[u] * degrees[v] for u, v in edges], dtype=float)
+    elif target == "periphery":
+        # max(..., 1) prevents DivisionByZero if isolated nodes exist.
+        weights = np.array(
+            [1.0 / (max(degrees[u], 1) * max(degrees[v], 1)) for u, v in edges],
+            dtype=float,
+        )
+
+    # Normalize to create a probability distribution
+    probabilities = weights / weights.sum()
+
+    # Sample unique indices based on probabilities
+    chosen_indices = np.random.choice(
+        len(edges), size=num_modify, replace=False, p=probabilities
+    )
+    edges_to_remove = [edges[i] for i in chosen_indices]
+
+    return edges_to_remove
+
+
+def _targetedRemoval(g: nx.Graph, num_modify: int, target: str):
+    """
+    Randomly samples non-edges to add, heavily weighting edges between high-degree nodes.
+    """
+    possible_edges_to_add = list(nx.non_edges(g))
+
+    if num_modify > len(possible_edges_to_add):
+        raise ValueError("More edges to be added than available non-edges.")
+
+    degrees = dict(g.degree())
+
+    # Calculate weights
+    if target == "hubs":
+        weights = np.array(
+            [degrees[u] * degrees[v] for u, v in possible_edges_to_add], dtype=float
+        )
+    elif target == "periphery":
+        # max(..., 1) prevents DivisionByZero if isolated nodes exist.
+        weights = np.array(
+            [
+                1.0 / (max(degrees[u], 1) * max(degrees[v], 1))
+                for u, v in possible_edges_to_add
+            ],
+            dtype=float,
+        )
+
+    probabilities = weights / weights.sum()
+
+    chosen_indices = np.random.choice(
+        len(possible_edges_to_add), size=num_modify, replace=False, p=probabilities
+    )
+    edges_to_add = [possible_edges_to_add[i] for i in chosen_indices]
+
+    return edges_to_add
 
 
 ############################################################

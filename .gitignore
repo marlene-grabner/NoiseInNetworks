@@ -10,6 +10,9 @@ __pycache__/
 .vscode/
 .idea/
 
+# Data
+.data/
+
 # Pytest cache
 .pytest_cache/
 

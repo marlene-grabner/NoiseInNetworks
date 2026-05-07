@@ -187,28 +187,41 @@ def _calcualteNumberOfEdgesToModify(g, noise_level, noise_types):
 # 5. Random noise introduction
 
 
-def _randomEdgesToAdd(g, num_modify):
+def _randomEdgesToAdd(g: nx.Graph, num_modify: int):
     """
-    Calcualtes all non-exisitng edges in the graph and randomly samples edges to add.
-
-    :param g: Original network
-    :type g: nx.Graph
-    :param num_modify: Number of edges to add
-    :type num_modify: int
+    Random edge addition using rejection sampling.
     """
-    # 1. Get all possible edges that don't already exist.
-    possible_edges_to_add = list(nx.non_edges(g))
+    nodes = list(g.nodes())
+    num_nodes = len(nodes)
+    edges_to_add = set()
 
-    # Raise error if more edges than possible are to be added
-    if num_modify > len(possible_edges_to_add):
-        raise ValueError("More edges to be added than complete network.")
+    # Calculate max possible non-edges
+    max_possible_edges = (num_nodes * (num_nodes - 1)) // 2 - g.number_of_edges()
+    if num_modify > max_possible_edges:
+        raise ValueError("More edges to be added than available non-edges.")
 
-    # 2. Directly sample unique edges to add.
-    edges_to_add = random.sample(possible_edges_to_add, num_modify)
+    # Loop until we have enough unique edges
+    while len(edges_to_add) < num_modify:
+        # Sample in batches to make numpy lightning fast
+        batch_size = (num_modify - len(edges_to_add)) * 2
 
-    del possible_edges_to_add  # Free memory
+        # Pick random nodes uniformly
+        u_indices = np.random.randint(0, num_nodes, size=batch_size)
+        v_indices = np.random.randint(0, num_nodes, size=batch_size)
 
-    return edges_to_add
+        for u_idx, v_idx in zip(u_indices, v_indices):
+            if u_idx != v_idx:  # No self-loops
+                u, v = nodes[u_idx], nodes[v_idx]
+
+                if not g.has_edge(u, v):
+                    # Sort to ensure (u,v) and (v,u) are treated identically by the set
+                    edge = (u, v) if u < v else (v, u)
+                    edges_to_add.add(edge)
+
+                    if len(edges_to_add) == num_modify:
+                        break
+
+    return list(edges_to_add)
 
 
 def _randomEdgesToRemove(g, num_modify):
@@ -265,38 +278,42 @@ def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
     Randomly samples non-edges to add, heavily weighting edges between
     high or low degree nodes depending on the target.
     """
-    possible_edges_to_add = list(nx.non_edges(g))
+    nodes = list(g.nodes())
+    degrees = dict(g.degree())
+    edges_to_add = set()
 
-    if num_modify > len(possible_edges_to_add):
+    max_possible_edges = (len(nodes) * (len(nodes - 1))) // 2 - g.number_of_edges()
+    if num_modify > max_possible_edges:
         raise ValueError("More edges to be added than available non-edges.")
 
-    degrees = dict(g.degree())
-
-    # Calculate weights
+    # 1. Calculate weights for INDIVIDUAL nodes, not edges!
     if target == "hubs":
-        weights = np.array(
-            [degrees[u] * degrees[v] for u, v in possible_edges_to_add], dtype=float
-        )
+        node_weights = np.array([degrees[n] for n in nodes], dtype=float)
     elif target == "periphery":
-        # max(..., 1) prevents DivisionByZero if isolated nodes exist.
-        weights = np.array(
-            [
-                1.0 / (max(degrees[u], 1) * max(degrees[v], 1))
-                for u, v in possible_edges_to_add
-            ],
-            dtype=float,
-        )
+        node_weights = np.array([1.0 / max(degrees[n], 1) for n in nodes], dtype=float)
+    else:
+        raise ValueError("Target must be 'hubs' or 'periphery'")
 
-    probabilities = weights / weights.sum()
+    # Normalize to create probabilities
+    node_probs = node_weights / node_weights.sum()
 
-    chosen_indices = np.random.choice(
-        len(possible_edges_to_add), size=num_modify, replace=False, p=probabilities
-    )
-    edges_to_add = [possible_edges_to_add[i] for i in chosen_indices]
+    # 2. Sample nodes based on those probabilities
+    while len(edges_to_add) < num_modify:
+        # Sample in batches (ask for 2x what we need to cover duplicates/rejections)
+        batch_size = (num_modify - len(edges_to_add)) * 2
 
-    del possible_edges_to_add  # Free memory
+        u_batch = np.random.choice(nodes, size=batch_size, p=node_probs)
+        v_batch = np.random.choice(nodes, size=batch_size, p=node_probs)
 
-    return edges_to_add
+        for u, v in zip(u_batch, v_batch):
+            if u != v and not g.has_edge(u, v):
+                edge = (u, v) if u < v else (v, u)
+                edges_to_add.add(edge)
+
+                if len(edges_to_add) == num_modify:
+                    break
+
+    return list(edges_to_add)
 
 
 ############################################################

@@ -38,30 +38,44 @@ def _networkMapFromDirectory(directory_path: str):
     """
     Scans a directory and automatically builds the structured map
     of perturbed networks based on filenames.
-
-    Expected format: *_{type}_edges_noise{level}_repeat{N}.txt
-    e.g. "autocore_ppi_added_edges_noise0p05_repeat0.txt"
     """
     tasks = []
 
-    # Regex to capture: (added/removed), (0p05), and the full filename
-    # Looks for: "added_edges" or "removed_edges" followed by "noise"
-    pattern = re.compile(r"(.*)_(added|removed)_edges_noise(\d+p\d+)_repeat(\d+)")
+    # Group 1: Network Name
+    # Group 2: Perturbation Type
+    # Group 3: Noise Level (e.g., 0p05 or just 1)
+    # Group 4: Repeat number
+    regex_str = r"(.*)_(targeted_hub_addition|targeted_hub_removal|targeted_periphery_addition|targeted_periphery_removal|added_edges|removed_edges)_noise(\d+(?:p\d+)?)_repeat(\d+)"
+    pattern = re.compile(regex_str)
 
-    # Get all .txt files in the directory
     path_obj = Path(directory_path)
-    files = sorted([f.name for f in path_obj.glob("*.txt")])
+
+    # Grab both .txt and .tsv just to be completely safe
+    files = list(path_obj.glob("*.txt")) + list(path_obj.glob("*.tsv"))
+    files = sorted([f.name for f in files])
 
     for filename in files:
+        # Ignore ghost files
+        if filename.startswith("._"):
+            continue
+
         match = pattern.search(filename)
         if match:
             network_name = match.group(1)
-            p_type = match.group(2)  # 'added' or 'removed'
-            p_level_str = match.group(3)  # '0p05'
+            p_type = match.group(2)  # e.g., 'targeted_hub_addition'
+
+            p_level_str = match.group(3)  # e.g., '0p05' or '1'
             p_level = float(p_level_str.replace("p", "."))
+
             repeat = match.group(4)
             repeat_id = f"rep{repeat}"
+
             tasks.append((filename, p_type, p_level, repeat_id, network_name))
+        else:
+            print(
+                f"Warning: File '{filename}' was ignored because it didn't match the regex."
+            )
+
     return tasks
 
 

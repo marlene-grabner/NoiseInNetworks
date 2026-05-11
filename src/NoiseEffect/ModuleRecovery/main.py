@@ -179,7 +179,7 @@ def _computeModulesOnPerturbedNetworks(
 
         # 2. Filter seeds to only those present in the network
         # Only necessary when edges were removed (nodes may have been isolated/removed)
-        if noise_type == "removed":
+        if "remov" in noise_type:
             seed_groups_in_network = filterForSeedsInNetwork(
                 perturbed_G, seed_groups, filename
             )

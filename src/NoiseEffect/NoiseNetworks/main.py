@@ -282,7 +282,7 @@ def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
     degrees = dict(g.degree())
     edges_to_add = set()
 
-    max_possible_edges = (len(nodes) * (len(nodes - 1))) // 2 - g.number_of_edges()
+    max_possible_edges = (len(nodes) * (len(nodes) - 1)) // 2 - g.number_of_edges()
     if num_modify > max_possible_edges:
         raise ValueError("More edges to be added than available non-edges.")
 

@@ -1,6 +1,9 @@
 import networkx as nx
 import random
 import numpy as np
+import pandas as pd
+import gzip
+from pathlib import Path
 
 ##################################################
 # Code generates networks with artificially,
@@ -41,32 +44,51 @@ def generateNoiseNetworksFromBaseline(
     """
     # Load the baseline network
     g, idx_to_node, node_to_idx = _loadBaseline(path_to_edgelist)
+    graph_info = {
+        "degrees": dict(g.degree()),
+        "nodes": list(g.nodes()),
+        "edges": list(g.edges())
+    }
     for noise_level in noise_levels:
         num_edges_to_modify = _calcualteNumberOfEdgesToModify(
-            g, noise_level, noise_types
+            g, noise_level, noise_types, graph_info
         )
-        for repeat in range(num_repeats_per_noise_level):
-            for noise_type in noise_types:
+        for noise_type in noise_types:
+            # List to hold the repeat results
+            all_dfs = []
+            for repeat in range(num_repeats_per_noise_level):
                 # Generate perturbed graph based on the action word
                 if "add" in noise_type:
-                    G_perturbed = _addEdgesToNetwork(g, num_edges_to_modify, noise_type)
+                    G_perturbed = _addEdgesToNetwork(g, num_edges_to_modify, noise_type, graph_info)
                 elif "remov" in noise_type:
                     G_perturbed = _removeEdgesFromNetwork(
-                        g, num_edges_to_modify, noise_type
+                        g, num_edges_to_modify, noise_type, graph_info
                     )
                 else:
                     raise ValueError(f"Unknown noise type: {noise_type}")
 
-                # Save the graph
-                _saveEdgelists(
-                    G_perturbed,
-                    idx_to_node,
-                    folder_to_save_perturbed,
-                    noise_level,
-                    repeat,
-                    network_name,
-                    modification_type=noise_type,
-                )
+                # Relabel nodes
+                G_perturbed = nx.relabel_nodes(G_perturbed, idx_to_node)
+
+                # Convert edges directly to a DataFrame
+                df_repeat = pd.DataFrame(G_perturbed.edges(), columns=["source", "target"])
+
+                # Add the repeat ID as a column
+                df_repeat["repeat"] = repeat
+
+                # Store this DataFrame
+                all_dfs.append(df_repeat)
+
+        # Combine all repeats into single DataFrame
+        final_df = pd.concat(all_dfs, ignore_index=True)
+
+        _saveParquet(
+            final_df,
+            folder_to_save_perturbed,
+            noise_level,
+            network_name,
+            modification_type=noise_type,
+        )
 
 
 ############################################################
@@ -98,7 +120,7 @@ def _loadBaseline(path_to_edgelist: str):
 # 3. Introduce noise by adding and removing edges
 
 
-def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str):
+def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str, graph_info: dict):
     """
     Overall function to introduce noise by adding edges.
 
@@ -109,12 +131,12 @@ def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str):
     """
     # Map the string to the correct function and target
     dispatch = {
-        "added_edges": lambda: _randomEdgesToAdd(g, num_edges_to_modify),
+        "added_edges": lambda: _randomEdgesToAdd(g, num_edges_to_modify, graph_info),
         "targeted_hub_addition": lambda: _targetedAddition(
-            g, num_edges_to_modify, target="hubs"
+            g, num_edges_to_modify, target="hubs", graph_info=graph_info
         ),
         "targeted_periphery_addition": lambda: _targetedAddition(
-            g, num_edges_to_modify, target="periphery"
+            g, num_edges_to_modify, target="periphery", graph_info=graph_info
         ),
     }
 
@@ -130,7 +152,7 @@ def _addEdgesToNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str):
     return G_added
 
 
-def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str):
+def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: str, graph_info: dict):
     """
     Overall function to introduce noise by removing edges.
 
@@ -140,12 +162,12 @@ def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: s
     :type num_edges_to_modify: int
     """
     dispatch = {
-        "removed_edges": lambda: _randomEdgesToRemove(g, num_edges_to_modify),
+        "removed_edges": lambda: _randomEdgesToRemove(g, num_edges_to_modify, graph_info),
         "targeted_hub_removal": lambda: _targetedRemoval(
-            g, num_edges_to_modify, target="hubs"
+            g, num_edges_to_modify, target="hubs", graph_info=graph_info
         ),
         "targeted_periphery_removal": lambda: _targetedRemoval(
-            g, num_edges_to_modify, target="periphery"
+            g, num_edges_to_modify, target="periphery", graph_info=graph_info
         ),
     }
 
@@ -159,7 +181,7 @@ def _removeEdgesFromNetwork(g: nx.Graph, num_edges_to_modify: int, noise_type: s
     return G_removed
 
 
-def _calcualteNumberOfEdgesToModify(g, noise_level, noise_types):
+def _calcualteNumberOfEdgesToModify(g, noise_level, noise_types, graph_info):
     """
     Calculates how many edges shall be modified based on the noise level.
 
@@ -169,9 +191,11 @@ def _calcualteNumberOfEdgesToModify(g, noise_level, noise_types):
     :type noise_level: float
     :param noise_types: Types of noise to apply (e.g., ["added_edges", "removed_edges"])
     :type noise_types: list[str]
+    :param graph_info: Precomputed graph information (e.g., degrees, nodes, edges)
+    :type graph_info: dict
     """
 
-    num_edges = len(g.edges)
+    num_edges = len(graph_info["edges"])
     num_modify = int(num_edges * noise_level)  # Number of edges to modify
 
     # Check if results make sense
@@ -187,11 +211,11 @@ def _calcualteNumberOfEdgesToModify(g, noise_level, noise_types):
 # 5. Random noise introduction
 
 
-def _randomEdgesToAdd(g: nx.Graph, num_modify: int):
+def _randomEdgesToAdd(g: nx.Graph, num_modify: int, graph_info: dict):
     """
     Random edge addition using rejection sampling.
     """
-    nodes = list(g.nodes())
+    nodes = graph_info["nodes"]
     num_nodes = len(nodes)
     edges_to_add = set()
 
@@ -224,7 +248,7 @@ def _randomEdgesToAdd(g: nx.Graph, num_modify: int):
     return list(edges_to_add)
 
 
-def _randomEdgesToRemove(g, num_modify):
+def _randomEdgesToRemove(g, num_modify, graph_info):
     """
     Gets all edges in the original graph and randomly samples edges to remove from the graph.
 
@@ -232,8 +256,10 @@ def _randomEdgesToRemove(g, num_modify):
     :type g: nx.Graph
     :param num_modify: Number of edges to remove
     :type num_modify: int
+    :param graph_info: Precomputed graph information
+    :type graph_info: dict
     """
-    edges = list(g.edges)
+    edges = graph_info["edges"]
     # Directly sample unique edges to remove
     edges_to_remove = random.sample(edges, num_modify)
     return edges_to_remove
@@ -243,13 +269,13 @@ def _randomEdgesToRemove(g, num_modify):
 # 5. Targeted noise introduction
 
 
-def _targetedRemoval(g: nx.Graph, num_modify: int, target: str):
+def _targetedRemoval(g: nx.Graph, num_modify: int, target: str, graph_info: dict):
     """
     Randomly samples edges to remove, weighting edges connected to
     high or low degree hubs depending on the target.
     """
-    edges = list(g.edges())
-    degrees = dict(g.degree())
+    edges = graph_info["edges"]
+    degrees = graph_info["degrees"]
 
     # Calculate weights based on the product of degrees
     if target == "hubs":
@@ -273,13 +299,13 @@ def _targetedRemoval(g: nx.Graph, num_modify: int, target: str):
     return edges_to_remove
 
 
-def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
+def _targetedAddition(g: nx.Graph, num_modify: int, target: str, graph_info: dict):
     """
     Randomly samples non-edges to add, heavily weighting edges between
     high or low degree nodes depending on the target.
     """
-    nodes = list(g.nodes())
-    degrees = dict(g.degree())
+    nodes = graph_info["nodes"]
+    degrees = graph_info["degrees"]
     edges_to_add = set()
 
     max_possible_edges = (len(nodes) * (len(nodes) - 1)) // 2 - g.number_of_edges()
@@ -320,40 +346,19 @@ def _targetedAddition(g: nx.Graph, num_modify: int, target: str):
 # 4. Save the perturbed edgelists
 
 
-def _saveEdgelists(
-    g: nx.Graph,
-    idx_to_node: dict[int, str],
+def _saveParquet(
+    final_df: pd.DataFrame,
     folder_to_save_perturbed: str,
     noise_level: float,
-    repeat: int,
     network_name: str,
     modification_type: str,
 ):
-    """
-    Saves the perturbed edgelist to a specified folder with a specific naming convention.
-
-    :param g: Perturbed network
-    :type g: nx.Graph
-    :param idx_to_node: Mapping from node indices to original node labels
-    :type idx_to_node: dict[int, str]
-    :param folder_to_save_perturbed: Folder path to save the perturbed edgelists
-    :type folder_to_save_perturbed: str
-    :param noise_level: Noise level applied to the network
-    :type noise_level: float
-    :param repeat: Repeat index for the noise application
-    :type repeat: int
-    :param network_name: Name of the original network
-    :type network_name: str
-    :param modification_type: Description of the modification type (e.g., "added_edges" or "removed_edges")
-    :type modification_type: str
-    """
-    # Translate noise level to string suitable for file name
-    if str(noise_level).find("."):
-        noise_level = str(noise_level).replace(".", "p")
-
-    # Translate node id back to the original labels
-    g = nx.relabel_nodes(g, idx_to_node)
-
-    # Create filename & save file
-    file_name = f"{folder_to_save_perturbed}/{network_name}_{modification_type}_noise{noise_level}_repeat{repeat}.txt"
-    nx.write_edgelist(G=g, path=file_name, delimiter="\t", data=False)
+    """Saves the combined Pandas DataFrame as a Parquet file."""
+    noise_level_str = str(noise_level).replace(".", "p")
+    
+    # Optional but recommended: convert to smaller data types to save RAM/Disk space
+    # If repeat is always 0-99, uint8 is perfect
+    final_df["repeat"] = final_df["repeat"].astype("uint8") 
+    
+    file_path = f"{folder_to_save_perturbed}/{network_name}_{modification_type}_noise_{noise_level_str}.parquet"
+    final_df.to_parquet(file_path, index=False)

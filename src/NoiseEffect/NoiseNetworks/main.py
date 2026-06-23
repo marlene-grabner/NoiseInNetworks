@@ -67,11 +67,12 @@ def generateNoiseNetworksFromBaseline(
                 else:
                     raise ValueError(f"Unknown noise type: {noise_type}")
 
-                # Relabel nodes
-                G_perturbed = nx.relabel_nodes(G_perturbed, idx_to_node)
-
-                # Convert edges directly to a DataFrame
+                # Extract edges and convert to DataFrame
                 df_repeat = pd.DataFrame(G_perturbed.edges(), columns=["source", "target"])
+
+                # Relabel nodes in the DataFrame back to original labels
+                df_repeat["source"] = df_repeat["source"].map(idx_to_node)
+                df_repeat["target"] = df_repeat["target"].map(idx_to_node)
 
                 # Add the repeat ID as a column
                 df_repeat["repeat"] = repeat
@@ -79,16 +80,16 @@ def generateNoiseNetworksFromBaseline(
                 # Store this DataFrame
                 all_dfs.append(df_repeat)
 
-        # Combine all repeats into single DataFrame
-        final_df = pd.concat(all_dfs, ignore_index=True)
+            # Combine all repeats into single DataFrame
+            final_df = pd.concat(all_dfs, ignore_index=True)
 
-        _saveParquet(
-            final_df,
-            folder_to_save_perturbed,
-            noise_level,
-            network_name,
-            modification_type=noise_type,
-        )
+            _saveParquet(
+                final_df,
+                folder_to_save_perturbed,
+                noise_level,
+                network_name,
+                modification_type=noise_type,
+            )
 
 
 ############################################################

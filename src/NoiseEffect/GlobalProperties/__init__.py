@@ -1,1 +1,2 @@
+from .fiedler_value import fiedler_on_gcc
 from .calculate_gcc_singletons import calculate_singletons_and_gcc, _process_singletons_and_gcc

@@ -61,15 +61,16 @@ def getMetrics(clustering_1, clustering_2):
     try:
         # Calculate metrics
         ari = adjusted_rand_score(labels_true=clustering_1, labels_pred=clustering_2)
-        ami = adjusted_mutual_info_score(
-            labels_true=clustering_1, labels_pred=clustering_2
-        )
+        #ami = adjusted_mutual_info_score(
+        #    labels_true=clustering_1, labels_pred=clustering_2
+        #)
         return {
             "status": "success",
             "num_clusters_1": n_clustering_1,
             "num_clusters_2": n_clustering_2,
             "ari": ari,
-            "ami": ami,
+            #"ami": ami,
+            "ami": np.nan,  # Temporarily set AMI to NaN
         }
     except Exception as e:
         return {

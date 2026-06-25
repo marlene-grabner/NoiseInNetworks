@@ -1,8 +1,8 @@
 import igraph as ig
 import networkx as nx
 import itertools
-from NoiseEffect.BenchmarkAlgorithms.utils import convertPartitionToLabels, getMetrics
-from NoiseEffect.BenchmarkAlgorithms.detection_algorithms import (
+from NoiseEffect.CommunityDetection.utils import convertPartitionToLabels, getMetrics
+from NoiseEffect.CommunityDetection.detection_algorithms import (
     leidenAlgorithmPartioning,
     infomapAlgorithmPartioning,
     louvainPartioning,
@@ -10,12 +10,12 @@ from NoiseEffect.BenchmarkAlgorithms.detection_algorithms import (
 )
 
 
-def benchmarkAlgorithm(nx_graph, list_of_seeds, algorithm, parameters={}):
+def benchmarkBaselineStabilityAlgorithm(ig_graph: ig.Graph, list_of_seeds: list[int], algorithm: str, parameters: dict = {}):
     """
     Runs a community detection algorithm multiple times to benchmark its stability.
 
     Args:
-        nx_graph (networkx.Graph): The input graph.
+        ig_graph (igraph.Graph): The input graph.
         list_of_seeds (list[int]): A list of random seeds to run the algorithm with.
         algorithm (str): The name of the algorithm to use ('leiden', 'infomap').
         parameters (dict, optional): Extra parameters for the algorithm,
@@ -26,7 +26,6 @@ def benchmarkAlgorithm(nx_graph, list_of_seeds, algorithm, parameters={}):
                     of runs. Each dict contains 'ari', 'ami', etc.
     """
 
-    ig_graph = ig.Graph.from_networkx(nx_graph)
     num_nodes = ig_graph.vcount()
 
     if algorithm == "leiden":

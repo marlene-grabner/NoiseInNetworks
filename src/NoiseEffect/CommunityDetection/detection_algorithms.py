@@ -49,9 +49,8 @@ def infomapAlgorithmPartioning(ig_graph, list_of_seeds, n_iterations):
             f"--two-level --silent --seed {seed} --num-trials {n_iterations}"
         )
 
-        # Add links
-        for src, tgt in edges:
-            infomap_wrapper.add_link(src, tgt)
+        # Add links at once
+        infomap_wrapper.add_links(edges)
 
         # Run Infomap
         infomap_wrapper.run()
